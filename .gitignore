@@ -1,0 +1,12 @@
+# cookies are effectively an account key — must never end up in git
+cookies.txt
+*.cookies
+*.cookies.txt
+
+__pycache__/
+*.pyc
+
+# personal history-cleanup / push tools — not part of the shipped project
+scrub_claude_mentions.bat
+scrub_claude_mentions.py
+push_clean.bat

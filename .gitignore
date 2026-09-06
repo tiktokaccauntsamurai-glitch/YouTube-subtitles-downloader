@@ -1,0 +1,39 @@
+# Cookies - never commit! (YouTube auth cookies are real credentials)
+cookies.txt
+*.cookies
+*.cookies.txt
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs & temp
+*.log
+*.tmp
+temp/
+tmp/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Secrets
+*.key
+*.pem
+secrets/
+credentials/
+
+# Personal git/push tooling - not part of the project, never shared.
+/exclude/

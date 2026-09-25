@@ -37,3 +37,6 @@ credentials/
 
 # Personal git/push tooling - not part of the project, never shared.
 /exclude/
+
+# Built add-on packages (rebuild with python release/build.py)
+/release/dist/

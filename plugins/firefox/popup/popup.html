@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <h1>YouTube subtitles &rarr; Markdown</h1>
+
+  <label class="field">
+    <span>Link</span>
+    <input id="url" type="text" placeholder="video, playlist or channel" spellcheck="false">
+  </label>
+
+  <div class="row">
+    <label class="field">
+      <span>Subtitle language</span>
+      <select id="lang">
+        <option value="">Auto (ru for Russian, en otherwise)</option>
+        <option value="ru">ru</option>
+        <option value="en">en</option>
+        <option value="es">es</option>
+        <option value="de">de</option>
+        <option value="fr">fr</option>
+        <option value="custom">Other code&hellip;</option>
+      </select>
+    </label>
+    <label class="field narrow">
+      <span>Limit</span>
+      <input id="limit" type="number" min="0" step="1" value="0" title="0 = every video in the list">
+    </label>
+  </div>
+
+  <input id="langCustom" class="hidden" type="text" placeholder="language code, e.g. ja" spellcheck="false">
+
+  <label class="check">
+    <input id="timestamps" type="checkbox" checked>
+    <span>Timestamps in the text</span>
+  </label>
+
+  <div class="actions">
+    <button id="start" type="button" class="primary">Save subtitles</button>
+    <button id="stop" type="button" disabled>Stop</button>
+  </div>
+
+  <div id="summary" class="summary"></div>
+  <ul id="log" class="log"></ul>
+
+  <script src="popup.js"></script>
+</body>
+</html>

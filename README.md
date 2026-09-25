@@ -7,6 +7,7 @@ A small console program: give it a link, get a `.md` file with the subtitle text
 - [Requirements](#requirements)
 - [Install](#install)
 - [Run](#run)
+- [Firefox add-on (no cookies needed)](#firefox-add-on-no-cookies-needed)
 - [How language & track selection works](#how-language--track-selection-works)
 - [Fixing/overriding the preferred language](#fixingoverriding-the-preferred-language)
 - [Full command-line reference](#full-command-line-reference)
@@ -52,6 +53,14 @@ A channel link also works and is treated like a playlist of all its videos:
 ```
 python yt_subs.py "https://www.youtube.com/@channelname"
 ```
+
+## Firefox add-on (no cookies needed)
+
+The same tool as a browser add-on lives in [`plugins/firefox`](plugins/firefox/README.md): paste a link in the popup (or just open the video) and the `.md` file lands in `Downloads`.
+
+Its point is the [cookie problem](#security-notes). The script needs `--cookies` for anything that requires a signed-in session; the add-on makes its requests from a youtube.com tab, so Firefox attaches the session itself — nothing is exported, decrypted or stored, and there is no `cookies.txt` to leak. It also needs neither Python nor yt-dlp.
+
+Install: `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** → `plugins/firefox/manifest.json`. Details, permissions and limits are in [plugins/firefox/README.md](plugins/firefox/README.md).
 
 ## How language & track selection works
 

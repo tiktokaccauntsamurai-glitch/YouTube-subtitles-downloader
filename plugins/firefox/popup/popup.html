@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <h1>YouTube subtitles &rarr; Markdown <a id="openSettings" href="#" title="Settings: preferred languages">&#9881;</a></h1>
+
+  <label class="field">
+    <span>Link</span>
+    <input id="url" type="text" placeholder="video, playlist or channel" spellcheck="false">
+  </label>
+
+  <div class="row">
+    <label class="field">
+      <span>Subtitle language</span>
+      <select id="lang">
+        <!-- filled from the settings by popup.js -->
+      </select>
+    </label>
+    <label id="limitField" class="field narrow hidden">
+      <span>Limit</span>
+      <input id="limit" type="number" min="0" step="1" value="0" title="0 = every video in the list">
+    </label>
+  </div>
+
+  <input id="langCustom" class="hidden" type="text" placeholder="language code, e.g. ja" spellcheck="false">
+
+  <label class="check">
+    <input id="timestamps" type="checkbox" checked>
+    <span>Timestamps in the text</span>
+  </label>
+
+  <div class="actions">
+    <button id="start" type="button" class="primary">Save subtitles</button>
+    <button id="stop" type="button" disabled>Stop</button>
+  </div>
+
+  <div id="summary" class="summary"></div>
+  <ul id="log" class="log"></ul>
+
+  <script src="popup.js"></script>
+</body>
+</html>

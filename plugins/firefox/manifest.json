@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "Subtitles to Markdown for YouTube",
+  "version": "1.2.0",
+  "description": "Saves YouTube subtitles (a video, a playlist or a channel) as Markdown files, using the session the browser is already signed in with.",
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "yt-subs-md@local",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
+    }
+  },
+
+  "permissions": ["storage", "downloads", "scripting", "alarms"],
+  "host_permissions": ["*://*.youtube.com/*"],
+
+  "background": {
+    "scripts": [
+      "lib/util.js",
+      "lib/parse.js",
+      "lib/markdown.js",
+      "lib/youtube.js",
+      "background.js"
+    ]
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://www.youtube.com/*", "*://consent.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+
+  "options_ui": { "page": "options/options.html", "open_in_tab": true },
+
+  "action": {
+    "default_title": "YouTube subtitles -> Markdown",
+    "default_popup": "popup/popup.html",
+    "default_icon": "icons/icon.svg"
+  },
+
+  "icons": { "96": "icons/icon.svg" }
+}

@@ -13,6 +13,7 @@ Result: a .md file in the Downloads folder (playlist -> subfolder named after it
 
 import argparse
 import datetime as dt
+import html
 import json
 import os
 import random
@@ -202,21 +203,20 @@ def parse_vtt(raw):
             flush()
             start, buf = None, []
         elif start is not None and not line.startswith(("WEBVTT", "NOTE", "Kind:", "Language:")):
-            buf.append(TAG.sub("", line))
+            buf.append(html.unescape(TAG.sub("", line)))
     flush()
 
-    result = []                         # rolling auto-captions duplicate lines
+    # Rolling auto-captions repeat the tail of the previous cue or grow it; only
+    # those shapes are merged, so a short reply ("Yes") after "Yes, I agree." survives.
+    result = []
     for t, text in cues:
-        if result and text in result[-1][1]:
+        if result and result[-1][1].endswith(text):
             continue
-        if result and result[-1][1] in text:
+        if result and text.startswith(result[-1][1]):
             result[-1] = (result[-1][0], text)
             continue
         result.append((t, text))
     return result
-
-
-ENTITIES = {"&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'", "&nbsp;": " "}
 
 
 def parse_xml(raw):
@@ -228,9 +228,8 @@ def parse_xml(raw):
         else:                           # t="1500" is milliseconds (srv3),
             number = float(re.sub(r"[^\d.]", "", value) or 0)   # start="4"/"4s" is seconds
             secs = number / 1000.0 if attr == "t" else number
-        text = re.sub(r"\s+", " ", TAG.sub(" ", m.group(3))).strip()
-        for k, v in ENTITIES.items():
-            text = text.replace(k, v)
+        # one unescape pass: "&amp;lt;" stays "&lt;", numeric entities (&#8217;) are decoded
+        text = re.sub(r"\s+", " ", html.unescape(TAG.sub(" ", m.group(3)))).strip()
         if text:
             cues.append((secs, text))
     return cues

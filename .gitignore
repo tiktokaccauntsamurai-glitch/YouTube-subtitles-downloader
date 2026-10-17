@@ -34,6 +34,3 @@ Thumbs.db
 *.pem
 secrets/
 credentials/
-
-# Personal git/push tooling - not part of the project, never shared.
-/exclude/

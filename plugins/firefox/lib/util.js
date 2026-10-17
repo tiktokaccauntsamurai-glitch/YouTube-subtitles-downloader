@@ -6,9 +6,11 @@ YS.baseLang = function (code) {
 };
 
 YS.safeName = function (text, limit = 90) {
-  let name = String(text || "").replace(/[<>:"/\\|?*\x00-\x1f]/g, "");
+  // besides reserved punctuation, invisible formatting characters (the zero-width joiner
+  // inside an emoji, bidi marks, BOM, variation selectors) make the browser reject a name
+  let name = String(text || "").replace(/[<>:"/\\|?*\x00-\x1f\x7f​-‏‪-‮⁦-⁩︀-️﻿]/g, "");
   name = name.replace(/\s+/g, " ").replace(/^[\s.]+|[\s.]+$/g, "");
-  name = name.slice(0, limit).replace(/^[\s.]+|[\s.]+$/g, "") || "video";
+  name = Array.from(name).slice(0, limit).join("").replace(/^[\s.]+|[\s.]+$/g, "") || "video";
   // device names Windows refuses as a file or folder name (a playlist called "Con")
   return /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(name) ? `_${name}` : name;
 };
@@ -31,6 +33,7 @@ YS.renderText = function (node) {
   if (!node) return "";
   if (typeof node === "string") return node;
   if (node.simpleText) return node.simpleText;
+  if (typeof node.content === "string") return node.content;
   if (Array.isArray(node.runs)) return node.runs.map((r) => r.text || "").join("");
   return "";
 };

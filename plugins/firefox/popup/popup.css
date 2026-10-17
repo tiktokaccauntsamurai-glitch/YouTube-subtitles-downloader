@@ -120,3 +120,6 @@ button:disabled { opacity: .5; cursor: default; }
 .log .skip { color: var(--skip); }
 .log .error { color: var(--err); }
 .log .info { color: var(--muted); }
+
+h1 a { float: right; text-decoration: none; color: var(--muted); font-size: 16px; line-height: 1; }
+h1 a:hover { color: var(--fg); }

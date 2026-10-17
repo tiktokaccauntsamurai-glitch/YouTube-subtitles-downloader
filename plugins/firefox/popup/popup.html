@@ -5,7 +5,7 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <h1>YouTube subtitles &rarr; Markdown</h1>
+  <h1>YouTube subtitles &rarr; Markdown <a id="openSettings" href="#" title="Settings: preferred languages">&#9881;</a></h1>
 
   <label class="field">
     <span>Link</span>
@@ -16,16 +16,10 @@
     <label class="field">
       <span>Subtitle language</span>
       <select id="lang">
-        <option value="">Auto (ru for Russian, en otherwise)</option>
-        <option value="ru">ru</option>
-        <option value="en">en</option>
-        <option value="es">es</option>
-        <option value="de">de</option>
-        <option value="fr">fr</option>
-        <option value="custom">Other code&hellip;</option>
+        <!-- filled from the settings by popup.js -->
       </select>
     </label>
-    <label class="field narrow">
+    <label id="limitField" class="field narrow hidden">
       <span>Limit</span>
       <input id="limit" type="number" min="0" step="1" value="0" title="0 = every video in the list">
     </label>

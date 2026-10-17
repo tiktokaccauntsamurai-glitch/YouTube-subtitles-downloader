@@ -17,7 +17,7 @@ For a permanent install the folder has to be zipped and signed at [addons.mozill
 | Field | Meaning |
 | --- | --- |
 | **Link** | A video, a playlist, or a channel. Pre-filled from the current tab when it is a YouTube page. |
-| **Subtitle language** | `Auto` follows the same rule as the script: `ru` for Russian videos, `en` for everything else. Any other code (`ja`, `es`, …) can be forced. |
+| **Subtitle language** | `Auto` follows the rule from the settings page (default: `ru` for Russian videos, `en` for everything else). Your own languages from the settings are listed as quick choices; `Other code…` accepts any code (`ja`, `es`, …). |
 | **Limit** | For playlists/channels: stop after N videos. `0` = all of them. |
 | **Timestamps** | Off = plain flowing text without the `**[mm:ss]**` prefixes. |
 
@@ -46,6 +46,7 @@ lib/parse.js       json3 / vtt / srv1 / srv3 / ttml -> cues
 lib/markdown.js    cues -> paragraphs -> Markdown
 lib/youtube.js     player-response and playlist-page knowledge, track selection
 popup/             the UI
+options/           the settings page: preferred languages, automatic rule
 test/check.js      unit tests for lib/ — `node test/check.js`, no browser needed
 ```
 
@@ -55,7 +56,7 @@ test/check.js      unit tests for lib/ — `node test/check.js`, no browser need
 | --- | --- |
 | `*://*.youtube.com/*` | reading video/playlist pages and subtitle tracks; also lets the add-on see which tabs are on youtube.com (and only those) |
 | `downloads` | writing the `.md` files |
-| `scripting` | loading the request script into a youtube.com tab that was open before the add-on was installed |
+| `scripting` | loading the request script into a youtube.com tab that was open before the add-on was installed; reading the subtitle request / transcript panel of the player page when YouTube refuses plain subtitle links |
 | `storage` | remembering the language/timestamps/limit settings |
 | `alarms` | keeping the background page awake during a long playlist run |
 

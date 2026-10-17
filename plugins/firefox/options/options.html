@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Subtitles to Markdown - settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <h1>Settings</h1>
+
+  <section>
+    <h2>Languages</h2>
+
+    <label class="check">
+      <input id="auto" type="checkbox">
+      <span>Automatic: pick the language by the video</span>
+    </label>
+    <div id="autoRule" class="rule">
+      If the video is in <input id="mine" type="text" list="known" maxlength="8" spellcheck="false" autocomplete="off">
+      take that language, otherwise take <input id="other" type="text" list="known" maxlength="8" spellcheck="false" autocomplete="off">
+    </div>
+
+    <div id="manual">
+      <p class="hint">Your languages. They appear as quick choices in the popup. With Automatic off they are also the default order: top to bottom, and for each one a manual track first, then an automatic one.</p>
+      <ol id="list" class="langs"></ol>
+      <div class="add">
+        <input id="code" type="text" list="known" placeholder="language code, e.g. ja" spellcheck="false" autocomplete="off">
+        <button id="addBtn" type="button">Add</button>
+      </div>
+      <datalist id="known"></datalist>
+
+      <label class="check">
+        <input id="any" type="checkbox">
+        <span>If none of them exists, take any available language</span>
+      </label>
+    </div>
+    <p class="hint">If the video's own (spoken) language has subtitles, they are used before anything outside your list.</p>
+  </section>
+
+  <div class="actions">
+    <button id="reset" type="button">Reset to defaults</button>
+    <span id="saved" class="saved"></span>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

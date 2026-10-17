@@ -117,6 +117,12 @@ eq("explicit target de", YS.chooseTrack(p, "de", "de").label, "automatic");
 p = pr([track("fr")]);
 eq("only other language", YS.chooseTrack(p, "en").label, "manual (other language)");
 eq("no tracks", YS.chooseTrack(pr([]), "en"), null);
+p = pr([track("de"), track("en", "asr"), track("ru", "asr")]);
+eq("list: first language in order wins", YS.chooseTrack(p, "en", ["ru", "en"]).track.languageCode, "ru");
+eq("list: second when first missing", YS.chooseTrack(pr([track("en")]), "ja", ["ru", "en"]).track.languageCode, "en");
+eq("list: manual of a later language beats nothing", YS.chooseTrack(p, "en", ["fr", "de"]).label, "manual");
+eq("list: no match and no fallback", YS.chooseTrack(pr([track("fr")]), "ja", ["ru", "en"], false), null);
+eq("list: native still tried without fallback", YS.chooseTrack(pr([track("fr")]), "fr", ["ru"], false).label, "manual (native language)");
 p = pr([track("en-US"), track("en-GB")]);
 eq("prefers the first of equally long codes", YS.chooseTrack(p, "en").track.languageCode, "en-US");
 p = pr([], { streamingData: { adaptiveFormats: [{ audioTrack: { id: "ja.4", audioIsDefault: true } }] } });
@@ -171,6 +177,16 @@ const many = Array.from({ length: 60 }, (_, i) => [i * 3, "sentence number " + i
 const paras = YS.paragraphs(many);
 eq("paragraphs split", paras.length > 1, true);
 eq("paragraphs keep all text", paras.map(p => p[1]).join(" ").split(" ").length, many.length * 3);
+
+// --- regressions
+const lockup = { a: { lockupViewModel: { contentId: "abcdefghijk", contentType: "LOCKUP_CONTENT_TYPE_VIDEO",
+  metadata: { lockupMetadataViewModel: { title: { content: "New layout" } } } } },
+  b: { lockupViewModel: { contentId: "PLxxxxxxxxxxxxxxxxxxxxxx", contentType: "LOCKUP_CONTENT_TYPE_PLAYLIST" } } };
+const found = [];
+YS.collectEntries(lockup, new Set(), found);
+eq("collectEntries/lockupViewModel (video only)", found, [{ id: "abcdefghijk", title: "New layout" }]);
+eq("safeName/does not split emoji", YS.safeName("😀".repeat(100)).length, 180);
+eq("renderText/content", YS.renderText({ content: "x" }), "x");
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

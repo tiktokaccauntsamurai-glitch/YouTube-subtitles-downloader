@@ -3,6 +3,7 @@ const el = {
   lang: document.getElementById("lang"),
   langCustom: document.getElementById("langCustom"),
   limit: document.getElementById("limit"),
+  limitField: document.getElementById("limitField"),
   timestamps: document.getElementById("timestamps"),
   start: document.getElementById("start"),
   stop: document.getElementById("stop"),
@@ -10,7 +11,55 @@ const el = {
   log: document.getElementById("log"),
 };
 
-const PRESETS = new Set(["", "ru", "en", "es", "de", "fr"]);
+// Same rule as YS.isPlaylistUrl in lib/youtube.js (the popup does not load lib/).
+function isListLink(raw) {
+  let u;
+  try {
+    u = new URL(String(raw).trim());
+  } catch {
+    return false;
+  }
+  if (!/(^|\.)youtube\.com$/i.test(u.hostname)) return false;
+  if (u.searchParams.has("list")) return u.pathname.startsWith("/playlist") || !u.searchParams.has("v");
+  return /^\/(@[^/]+|c\/[^/]+|user\/[^/]+|channel\/[^/]+)/i.test(u.pathname);
+}
+
+function syncLimit() {
+  el.limitField.classList.toggle("hidden", !isListLink(el.url.value));
+}
+
+const DEFAULT_SETTINGS = { autoLang: true, autoMine: "ru", autoOther: "en", langs: ["ru", "en"], anyLang: true };
+let presets = new Set([""]);
+
+// The language menu mirrors the settings page: the first entry says what "default" means
+// right now, then come the user's own languages as quick choices.
+function buildLangMenu(s) {
+  const langs = Array.isArray(s.langs) ? s.langs : DEFAULT_SETTINGS.langs;
+  const first = s.autoLang
+    ? "Auto"
+    : `Auto: ${langs.join(" → ")}`;
+  el.lang.textContent = "";
+  const add = (value, text) => {
+    const o = document.createElement("option");
+    o.value = value;
+    o.textContent = text;
+    el.lang.appendChild(o);
+  };
+  add("", first);
+  for (const code of langs) add(code, code);
+  add("custom", "Other code…");
+  presets = new Set(["", ...langs]);
+}
+
+function pickLang(value) {
+  if (presets.has(value)) {
+    el.lang.value = value;
+  } else {
+    el.lang.value = "custom";
+    el.langCustom.value = value;
+  }
+  syncCustom();
+}
 
 function chosenLang() {
   return el.lang.value === "custom" ? el.langCustom.value.trim().toLowerCase() : el.lang.value;
@@ -44,16 +93,11 @@ function render(state) {
 // ---------------------------------------------------------------- settings
 
 async function loadSettings() {
-  const saved = await browser.storage.local.get({ lang: "", timestamps: true, limit: 0 });
-  if (PRESETS.has(saved.lang)) {
-    el.lang.value = saved.lang;
-  } else {
-    el.lang.value = "custom";
-    el.langCustom.value = saved.lang;
-  }
+  const saved = await browser.storage.local.get({ ...DEFAULT_SETTINGS, lang: "", timestamps: true, limit: 0 });
+  buildLangMenu(saved);
+  pickLang(saved.lang);
   el.timestamps.checked = saved.timestamps;
   el.limit.value = saved.limit;
-  syncCustom();
 }
 
 function saveSettings() {
@@ -69,10 +113,20 @@ async function prefillUrl() {
   if (tab && /^https?:\/\/(www\.|m\.|music\.)?(youtube\.com|youtu\.be)\//i.test(tab.url || "")) {
     el.url.value = tab.url;
   }
+  syncLimit();
   el.url.focus();
 }
 
 // ---------------------------------------------------------------- wiring
+
+// the settings page may be changed while the popup is open
+browser.storage.onChanged.addListener(async (changes, area) => {
+  if (area !== "local" || !(changes.langs || changes.autoLang || changes.autoMine || changes.autoOther)) return;
+  const s = await browser.storage.local.get(DEFAULT_SETTINGS);
+  const current = chosenLang();
+  buildLangMenu(s);
+  pickLang(current);
+});
 
 const port = browser.runtime.connect({ name: "popup" });
 port.onMessage.addListener((msg) => {
@@ -89,6 +143,7 @@ el.lang.addEventListener("change", () => {
   saveSettings();
 });
 el.langCustom.addEventListener("change", saveSettings);
+el.url.addEventListener("input", syncLimit);
 el.timestamps.addEventListener("change", saveSettings);
 el.limit.addEventListener("change", saveSettings);
 
@@ -110,6 +165,12 @@ el.start.addEventListener("click", async () => {
     addLine({ kind: "error", text: res.error });
     setRunning(false);
   }
+});
+
+document.getElementById("openSettings").addEventListener("click", (event) => {
+  event.preventDefault();
+  browser.runtime.openOptionsPage();
+  window.close();
 });
 
 el.stop.addEventListener("click", () => {

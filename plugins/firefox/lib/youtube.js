@@ -138,17 +138,23 @@ function matchLang(tracks, target) {
 }
 
 // Priority: manual target -> automatic target -> the same pair in the native
-// language -> anything that exists. targetLang overrides the ru/en default.
-YS.chooseTrack = function (pr, native, targetLang) {
+// language -> anything that exists. `targetLang` overrides the ru/en default: a code,
+// or an ordered list of codes (each tried manual-then-automatic before the next one).
+// With anyFallback === false the last "anything that exists" step is skipped.
+YS.chooseTrack = function (pr, native, targetLang, anyFallback = true) {
   const tracks = captionTracks(pr);
   if (!tracks.length) return null;
 
   const manual = tracks.filter((t) => t.kind !== "asr");
   const autos = tracks.filter((t) => t.kind === "asr");
-  const target = targetLang ? YS.baseLang(targetLang) : (native === "ru" ? "ru" : "en");
+  let targets = (Array.isArray(targetLang) ? targetLang : [targetLang])
+    .map((c) => YS.baseLang(c)).filter(Boolean);
+  targets = targets.filter((c, i) => targets.indexOf(c) === i);
+  if (!targets.length) targets = [native === "ru" ? "ru" : "en"];
 
-  const plan = [[manual, target, "manual"], [autos, target, "automatic"]];
-  if (native !== target) {              // the target language may not exist at all
+  const plan = [];
+  for (const target of targets) plan.push([manual, target, "manual"], [autos, target, "automatic"]);
+  if (!targets.includes(native)) {      // the target language may not exist at all
     plan.push([manual, native, "manual (native language)"],
               [autos, native, "automatic (native language)"]);
   }
@@ -156,6 +162,7 @@ YS.chooseTrack = function (pr, native, targetLang) {
     const track = matchLang(store, lang);
     if (track) return { track, label };
   }
+  if (!anyFallback) return null;
   for (const [store, label] of [[manual, "manual (other language)"], [autos, "automatic (other language)"]]) {
     if (store.length) {
       const track = [...store].sort((a, b) => a.languageCode.length - b.languageCode.length)[0];
@@ -184,9 +191,19 @@ YS.listTitle = function (data) {
 };
 
 // Video renderers differ per surface (playlist / grid / shelf), so instead of
-// matching each one we collect every node that carries a video id and a title.
+// matching each one we collect every node that carries a video id and a title
+// (or a lockupViewModel of the video type).
 YS.collectEntries = function (data, seen, out) {
   YS.walk(data, (node) => {
+    // current surfaces (channel tabs, many playlists) use lockupViewModel
+    if (node.contentType === "LOCKUP_CONTENT_TYPE_VIDEO" && typeof node.contentId === "string") {
+      const lockupTitle = (((node.metadata || {}).lockupMetadataViewModel || {}).title || {}).content;
+      if (VIDEO_ID_RE.test(node.contentId) && !seen.has(node.contentId)) {
+        seen.add(node.contentId);
+        out.push({ id: node.contentId, title: lockupTitle || "" });
+      }
+      return;
+    }
     const id = node.videoId;
     if (typeof id !== "string" || !VIDEO_ID_RE.test(id) || seen.has(id)) return;
     if (!node.title && !node.headline) return;

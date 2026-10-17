@@ -2,7 +2,7 @@
 
     python release/build.py
 
-Writes release/dist/<name>-<version>.zip with manifest.json at the archive root,
+Writes ../store/firefox/<version>/<name>-<version>.zip with manifest.json at the archive root,
 forward-slash paths (Windows' Compress-Archive writes backslashes, which AMO
 rejects) and fixed timestamps, so the same sources always give the same zip.
 """
@@ -13,7 +13,8 @@ import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "plugins" / "firefox"
-DIST = ROOT / "release" / "dist"
+# store versions live outside dev/ and outside the repo: <workspace>/store/firefox/<version>/
+STORE = ROOT.parent / "store" / "firefox"
 
 # runtime files only: tests and the developer README stay out of the package
 INCLUDE = [
@@ -28,6 +29,9 @@ INCLUDE = [
     "popup/popup.html",
     "popup/popup.css",
     "popup/popup.js",
+    "options/options.html",
+    "options/options.css",
+    "options/options.js",
 ]
 
 
@@ -40,6 +44,9 @@ def referenced(manifest):
     action = manifest.get("action", {})
     files.update(filter(None, [action.get("default_popup"), action.get("default_icon")]))
     files.update(manifest.get("icons", {}).values())
+    page = manifest.get("options_ui", {}).get("page")
+    if page:
+        files.add(page)
     return files
 
 
@@ -52,6 +59,7 @@ def main():
         if not (SRC / rel).is_file():
             sys.exit(f"missing file: {rel}")
 
+    DIST = STORE / manifest["version"]
     DIST.mkdir(parents=True, exist_ok=True)
     out = DIST / f"subtitles-to-markdown-{manifest['version']}.zip"
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -60,7 +68,7 @@ def main():
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o644 << 16
             zf.writestr(info, (SRC / rel).read_bytes())
-    print(f"{out.relative_to(ROOT)}  ({out.stat().st_size} bytes, {len(INCLUDE)} files)")
+    print(f"{out.relative_to(ROOT.parent)}  ({out.stat().st_size} bytes, {len(INCLUDE)} files)")
 
 
 if __name__ == "__main__":

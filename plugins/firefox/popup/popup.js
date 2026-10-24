@@ -11,24 +11,17 @@ const el = {
   log: document.getElementById("log"),
 };
 
-// Same rule as YS.isPlaylistUrl in lib/youtube.js (the popup does not load lib/).
+// the same canonicalization and rule the background page applies
 function isListLink(raw) {
-  let u;
-  try {
-    u = new URL(String(raw).trim());
-  } catch {
-    return false;
-  }
-  if (!/(^|\.)youtube\.com$/i.test(u.hostname)) return false;
-  if (u.searchParams.has("list")) return u.pathname.startsWith("/playlist") || !u.searchParams.has("v");
-  return /^\/(@[^/]+|c\/[^/]+|user\/[^/]+|channel\/[^/]+)/i.test(u.pathname);
+  const url = YS.canonicalUrl(String(raw).trim().replace(/^["']|["']$/g, ""));
+  return Boolean(url) && YS.isPlaylistUrl(url);
 }
 
 function syncLimit() {
   el.limitField.classList.toggle("hidden", !isListLink(el.url.value));
 }
 
-const DEFAULT_SETTINGS = { autoLang: true, autoMine: "ru", autoOther: "en", langs: ["ru", "en"], anyLang: true };
+const DEFAULT_SETTINGS = YS.LANG_DEFAULTS;
 let presets = new Set([""]);
 
 // The language menu mirrors the settings page: the first entry says what "default" means
@@ -93,7 +86,7 @@ function render(state) {
 // ---------------------------------------------------------------- settings
 
 async function loadSettings() {
-  const saved = await browser.storage.local.get({ ...DEFAULT_SETTINGS, lang: "", timestamps: true, limit: 0 });
+  const saved = await browser.storage.local.get({ ...DEFAULT_SETTINGS, ...YS.POPUP_DEFAULTS });
   buildLangMenu(saved);
   pickLang(saved.lang);
   el.timestamps.checked = saved.timestamps;
@@ -104,7 +97,7 @@ function saveSettings() {
   browser.storage.local.set({
     lang: chosenLang(),
     timestamps: el.timestamps.checked,
-    limit: Number(el.limit.value) || 0,
+    limit: Math.max(0, Math.floor(Number(el.limit.value) || 0)),
   });
 }
 
@@ -148,21 +141,33 @@ el.timestamps.addEventListener("change", saveSettings);
 el.limit.addEventListener("change", saveSettings);
 
 el.start.addEventListener("click", async () => {
+  if (el.lang.value === "custom" && !/^[a-z]{2,3}([-_][a-z0-9]{2,8})*$/.test(chosenLang())) {
+    el.summary.textContent = "";
+    el.log.textContent = "";
+    addLine({ kind: "error", text: "Enter a language code such as ja, es or pt-BR" });
+    el.langCustom.focus();
+    return;
+  }
   saveSettings();
   setRunning(true);
   el.log.textContent = "";
   el.summary.textContent = "";
-  const res = await browser.runtime.sendMessage({
-    type: "start",
-    options: {
-      url: el.url.value,
-      lang: chosenLang(),
-      timestamps: el.timestamps.checked,
-      limit: Number(el.limit.value) || 0,
-    },
-  });
-  if (res && !res.ok) {
-    addLine({ kind: "error", text: res.error });
+  let res;
+  try {
+    res = await browser.runtime.sendMessage({
+      type: "start",
+      options: {
+        url: el.url.value,
+        lang: chosenLang(),
+        timestamps: el.timestamps.checked,
+        limit: Math.max(0, Math.floor(Number(el.limit.value) || 0)),
+      },
+    });
+  } catch (err) {
+    res = { ok: false, error: String((err && err.message) || err) };
+  }
+  if (!res || !res.ok) {
+    addLine({ kind: "error", text: (res && res.error) || "the add-on did not answer" });
     setRunning(false);
   }
 });

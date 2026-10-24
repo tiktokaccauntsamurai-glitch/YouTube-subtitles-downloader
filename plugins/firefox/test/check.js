@@ -5,7 +5,7 @@ const fs = require("fs");
 const vm = require("vm");
 const path = require("node:path").join(__dirname, "..", "lib") + "/";
 const ctx = vm.createContext({ console, URL, setTimeout });
-for (const f of ["util.js", "parse.js", "markdown.js", "youtube.js"]) {
+for (const f of ["settings.js", "util.js", "parse.js", "markdown.js", "youtube.js", "inpage.js"]) {
   vm.runInContext(fs.readFileSync(path + f, "utf8"), ctx, { filename: f });
 }
 const YS = ctx.YS;

@@ -1,4 +1,4 @@
-const DEFAULTS = { autoLang: true, autoMine: "ru", autoOther: "en", langs: ["ru", "en"], anyLang: true };
+const DEFAULTS = YS.LANG_DEFAULTS;
 
 const NAMES = {
   ru: "Russian", en: "English", uk: "Ukrainian", be: "Belarusian", es: "Spanish", de: "German",
@@ -60,7 +60,7 @@ function move(i, d) {
 }
 
 function addCode() {
-  const code = el.code.value.trim().toLowerCase().replace("_", "-");
+  const code = el.code.value.trim().toLowerCase().replace(/_/g, "-");
   if (!/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/.test(code)) return;
   const base = code.split("-")[0];
   if (!langs.includes(base)) langs.push(base);       // matching is by base language anyway

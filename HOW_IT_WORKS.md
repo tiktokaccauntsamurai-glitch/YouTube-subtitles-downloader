@@ -79,6 +79,8 @@ This is the core logic the whole project exists for (line ~98). The rules, as di
 
 `match_lang(tracks, target, orig_first)` (line ~83) looks up a language code inside a track dictionary (`ru`, `ru-RU`, `en-US`...), comparing only the base part of the code via `base_lang()` (strips the region: `ru-RU` → `ru`). The `orig_first` flag makes it prefer the `xx-orig` auto-track variant when present — that's a more accurate match for multi-language videos than plain auto-generation.
 
+Before any of this, `real_tracks()` drops yt-dlp's machine translations: for every video it lists the auto track translated into ~150 languages (their URLs carry `tlang=`). Without that filter "automatic in the target language" would always exist, and a German video would get a machine-translated English track instead of falling back to German.
+
 `choose_track` returns `(lang, track, label)`, where `label` explains in plain words what was actually downloaded ("manual", "automatic", "manual (native language)", etc.) — this string ends up in the header of the resulting file.
 
 ## 4. The subtitle format itself: `pick_format`

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Subtitles to Markdown for YouTube",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Saves YouTube subtitles (a video, a playlist or a channel) as Markdown files, using the session the browser is already signed in with.",
 
   "browser_specific_settings": {
@@ -22,10 +22,12 @@
 
   "background": {
     "scripts": [
+      "lib/settings.js",
       "lib/util.js",
       "lib/parse.js",
       "lib/markdown.js",
       "lib/youtube.js",
+      "lib/inpage.js",
       "background.js"
     ]
   },

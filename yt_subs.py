@@ -20,6 +20,7 @@ import random
 import re
 import sys
 import time
+from urllib.parse import parse_qs, urlsplit
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -29,7 +30,6 @@ except Exception:
 
 try:
     from yt_dlp import YoutubeDL
-    from yt_dlp.utils import DownloadError
 except ImportError:
     print("yt-dlp is not installed. Run:  python -m pip install -U yt-dlp")
     sys.exit(1)
@@ -54,10 +54,18 @@ def downloads_dir():
     return os.path.join(os.path.expanduser("~"), "Downloads")
 
 
+# besides reserved punctuation, invisible formatting characters (zero-width joiners,
+# bidi marks, BOM, variation selectors) make some file systems and browsers choke
+UNSAFE_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f\x7f​-‏‪-‮⁦-⁩︀-️﻿]')
+RESERVED_NAMES = re.compile(r"^(con|prn|aux|nul|com\d|lpt\d)$", re.I)
+
+
 def safe_name(text, limit=90):
-    text = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", text or "")
+    text = UNSAFE_CHARS.sub("", text or "")
     text = re.sub(r"\s+", " ", text).strip(" .")
-    return text[:limit].strip(" .") or "video"
+    text = text[:limit].strip(" .") or "video"
+    # device names Windows refuses as a file or folder name (a playlist called "Con")
+    return f"_{text}" if RESERVED_NAMES.match(text) else text
 
 
 def settings_path():
@@ -90,16 +98,29 @@ def base_lang(code):
     return (code or "").split("-")[0].split("_")[0].lower()
 
 
+def real_tracks(tracks):
+    """Tracks YouTube actually has. yt-dlp also lists a machine translation of the
+    auto track into every language it can translate to (their URLs carry tlang=);
+    those are dropped, so a German video falls back to German, not to a translation."""
+    return {
+        code: formats for code, formats in (tracks or {}).items()
+        if code != "live_chat" and not any("tlang=" in (f.get("url") or "") for f in formats or [])
+    }
+
+
 def detect_language(info):
     """The video's native language."""
     lang = info.get("language")
     if lang:
         return base_lang(lang)
+    autos = real_tracks(info.get("automatic_captions"))
     # for multi-language videos, the original auto track carries an -orig suffix
-    for code in info.get("automatic_captions") or {}:
+    for code in autos:
         if code.endswith("-orig"):
             return base_lang(code)
-    subs = [c for c in (info.get("subtitles") or {}) if c != "live_chat"]
+    if len({base_lang(c) for c in autos}) == 1:    # auto-captions only exist for the spoken language
+        return base_lang(next(iter(autos)))
+    subs = list(real_tracks(info.get("subtitles")))
     if len(subs) == 1:
         return base_lang(subs[0])
     return "en"
@@ -107,7 +128,7 @@ def detect_language(info):
 
 def match_lang(tracks, target, orig_first):
     """Key of the track in the given language; None if that language isn't present."""
-    keys = [k for k in tracks if k != "live_chat" and base_lang(k) == target]
+    keys = [k for k in tracks if base_lang(k) == target]
     if not keys:
         return None
     if orig_first:
@@ -125,8 +146,8 @@ def choose_track(info, native, target_lang=None):
 
     target_lang overrides the default ru/en target with any language code
     (e.g. "fr", "es", "de") — see --lang in main()."""
-    subs = info.get("subtitles") or {}
-    autos = info.get("automatic_captions") or {}
+    subs = real_tracks(info.get("subtitles"))
+    autos = real_tracks(info.get("automatic_captions"))
     target = base_lang(target_lang) if target_lang else ("ru" if native == "ru" else "en")
     is_native = native == target
 
@@ -144,9 +165,8 @@ def choose_track(info, native, target_lang=None):
             return key, store[key], label
 
     for store, label in ((subs, "manual (other language)"), (autos, "automatic (other language)")):
-        keys = [k for k in store if k != "live_chat"]
-        if keys:
-            k = sorted(keys, key=len)[0]
+        if store:
+            k = sorted(store, key=len)[0]
             return k, store[k], label
     return None, None, None
 
@@ -236,11 +256,16 @@ def parse_xml(raw):
 
 
 def parse_subtitles(raw, ext):
-    if ext == "json3":
-        return parse_json3(raw)
-    if ext in ("vtt", "srt"):
-        return parse_vtt(raw)
-    return parse_xml(raw)
+    if not raw or not raw.strip():
+        return []
+    try:
+        if ext == "json3":
+            return parse_json3(raw)
+        if ext in ("vtt", "srt"):
+            return parse_vtt(raw)
+        return parse_xml(raw)
+    except ValueError:                  # a broken json3 body: treat it as an empty track
+        return []
 
 
 # ---------------------------------------------------------------- markdown
@@ -253,16 +278,17 @@ def hhmmss(seconds):
 
 def paragraphs(cues, soft=480, hard=900, gap=4.0):
     out, buf, start, prev = [], [], None, None
+    length = 0                          # of buf joined, plus one per cue
     for t, text in cues:
         if start is None:
             start = t
-        length = sum(len(x) + 1 for x in buf)
         big_gap = prev is not None and t - prev > gap and length > 200
         ends_sentence = bool(buf) and buf[-1][-1:] in ".!?…»\"'"
         if buf and (length >= hard or (length >= soft and ends_sentence) or big_gap):
             out.append((start, " ".join(buf)))
-            buf, start = [], t
+            buf, start, length = [], t, 0
         buf.append(text)
+        length += len(text) + 1
         prev = t
     if buf:
         out.append((start, " ".join(buf)))
@@ -367,7 +393,9 @@ def process_video(ydl, url, out_dir, timestamps=True, target_lang=None):
         raise RuntimeError("this video has neither manual nor automatic subtitles")
 
     fmt = pick_format(track)
-    raw = ydl.urlopen(fmt["url"]).read().decode("utf-8", "replace")
+    if not fmt:
+        raise RuntimeError(f"the {lang} track has no downloadable format")
+    raw =ydl.urlopen(fmt["url"]).read().decode("utf-8", "replace")
     cues = parse_subtitles(raw, fmt.get("ext", ""))
     if not cues:
         raise RuntimeError(f"the {lang} track is empty")
@@ -379,21 +407,31 @@ def process_video(ydl, url, out_dir, timestamps=True, target_lang=None):
     return path, native, lang, label, len(cues)
 
 
-CHANNEL_RE = re.compile(r"youtube\.com/(@[^/?#]+|c/|user/|channel/)", re.I)
+CHANNEL_PATH_RE = re.compile(r"^/(@[^/]+|c/[^/]+|user/[^/]+|channel/[^/]+)(?:/([^/]*))?", re.I)
 VIDEO_ID_RE = re.compile(r"^[\w-]{11}$")
 
 
 def is_playlist_url(url):
-    if "list=" in url:                  # watch?v=..&list=.. is still just one video
-        return "/playlist" in url or "v=" not in url
-    return bool(CHANNEL_RE.search(url))
+    """Same rule as the Firefox add-on (lib/youtube.js)."""
+    u = urlsplit(url)
+    query = parse_qs(u.query)
+    if "list" in query:
+        # watch?v=..&list=.. and youtu.be/ID?list=.. are still just one video
+        one_video = "v" in query or ((u.hostname or "").lower() == "youtu.be" and len(u.path) > 1)
+        return u.path.startswith("/playlist") or not one_video
+    return bool(CHANNEL_PATH_RE.match(u.path))
 
 
 def normalize_list_url(url):
-    """A channel link is redirected to its Videos tab, otherwise yt-dlp returns the tab list."""
-    if CHANNEL_RE.search(url) and not re.search(r"/(videos|shorts|streams|playlists)/?$", url):
-        return url.rstrip("/") + "/videos"
-    return url
+    """A channel link goes to its Videos tab (Shorts and Live are kept), otherwise
+    yt-dlp returns the tab list. Share junk like ?si=.. is dropped."""
+    u = urlsplit(url)
+    m = CHANNEL_PATH_RE.match(u.path)
+    if not m or "list" in parse_qs(u.query):
+        return url
+    tab = (m.group(2) or "").lower()
+    tab = tab if tab in ("videos", "shorts", "streams") else "videos"
+    return f"{u.scheme}://{u.netloc}/{m.group(1)}/{tab}"
 
 
 def entry_video_id(entry):
@@ -439,6 +477,8 @@ def handle(url, out_root, cookies_browser, timestamps=True, target_lang=None):
     url = url.strip().strip('"').strip("'")
     if not url:
         return
+    if not re.match(r"^[a-z][a-z0-9+.-]*://", url, re.I):  # "youtube.com/@name" pasted without a scheme
+        url = "https://" + url
 
     if not is_playlist_url(url):
         with YoutubeDL(ydl_options(cookies_browser)) as ydl:
@@ -478,7 +518,7 @@ def handle(url, out_root, cookies_browser, timestamps=True, target_lang=None):
             name = title or video_id
             if i > 1:
                 # random non-integer delay before each next video — avoid hammering
-                # YouTube with a steady stream of requests (see RECOMMENDATIONS_safety.md)
+                # YouTube with a steady stream of requests (see README, "Security notes")
                 time.sleep(random.uniform(1.0, 3.0))
             try:
                 _, native, lang, label, _ = process_video(
@@ -551,8 +591,6 @@ def main():
             return
         try:
             handle(url, out_root, args.cookies, timestamps, args.lang)
-        except DownloadError as exc:
-            print(f"Error: {short_error(exc, args.cookies)}\n")
         except Exception as exc:
             print(f"Error: {short_error(exc, args.cookies)}\n")
 

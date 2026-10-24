@@ -245,5 +245,5 @@ YS.playabilityError = function (pr) {
   const reason = status.reason || YS.renderText((status.errorScreen || {}).reason) || "";
   const known = PLAYABILITY[status.status];
   if (!known) return reason || status.status;
-  return reason && !/^\s*$/.test(reason) ? `${known} (${reason})` : known;
+  return reason.trim() ? `${known} (${reason})` : known;
 };

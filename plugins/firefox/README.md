@@ -2,7 +2,7 @@
 
 The same tool as `yt_subs.py`, but running inside Firefox: paste a link (or just open a video), press the button, and the subtitles land in your `Downloads` folder as Markdown.
 
-**Why a browser add-on:** the script needs a signed-in YouTube session for age-restricted videos and for the "confirm you're not a bot" check, which on the command line means exporting cookies with `--cookies`. In the browser there is nothing to export — the add-on asks a content script on a youtube.com tab to make the requests, so they are same-origin and Firefox attaches the session itself. **The add-on never reads, stores or sends cookies anywhere**, and it talks to no server other than youtube.com.
+**Why a browser add-on:** the script needs a signed-in YouTube session for age-restricted videos and for the "confirm you're not a bot" check, which on the command line means exporting cookies with `--cookies`. In the browser there is nothing to export — requests go out from the add-on itself, or, when YouTube refuses those, from a content script on a youtube.com tab, so Firefox attaches the session itself. **The add-on never reads, stores or sends cookies anywhere**, and it talks to no server other than youtube.com.
 
 ## Install (temporary, for development)
 
@@ -23,7 +23,9 @@ For a permanent install the folder has to be zipped and signed at [addons.mozill
 
 Files go to `Downloads/<title> [<id>].md`; a playlist or channel gets its own subfolder named after the list. The settings are remembered between runs.
 
-The job keeps running when the popup is closed — reopen it to see the log. **Stop** ends a playlist run after the current video.
+The job keeps running when the popup is closed — reopen it to see the log. **Stop** ends the run at the next step (it does not wait for a slow video to finish).
+
+**Tabs.** A run opens at most one background youtube.com tab and closes it when done. If the video is already open in one of your tabs, that tab is used and nothing is opened at all; your own tabs are never navigated to another video or closed, and their player is left as it was (not muted, captions setting restored).
 
 ## How track selection works
 
@@ -40,11 +42,13 @@ The subtitle track itself is fetched as `json3`, falling back to `srv3` and `vtt
 ```
 manifest.json      MV3 manifest (Firefox 140+)
 background.js      the job runner: link -> list of videos -> Markdown -> downloads
-content.js         the only code that touches the network, running on youtube.com
+content.js         runs requests from inside a youtube.com tab when direct ones are refused
+lib/settings.js    storage defaults shared by the background page, popup and settings page
 lib/util.js        helpers + the balanced-brace scanner for YouTube's inline JSON
 lib/parse.js       json3 / vtt / srv1 / srv3 / ttml -> cues
 lib/markdown.js    cues -> paragraphs -> Markdown
 lib/youtube.js     player-response and playlist-page knowledge, track selection
+lib/inpage.js      functions injected into the youtube.com page (player capture, transcript panel)
 popup/             the UI
 options/           the settings page: preferred languages, automatic rule
 test/check.js      unit tests for lib/ — `node test/check.js`, no browser needed
